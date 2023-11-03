@@ -1,0 +1,212 @@
+definitions:
+  book.Model:
+    properties:
+      author:
+        type: string
+      id:
+        type: integer
+      price:
+        type: number
+      title:
+        type: string
+    type: object
+  order.Order:
+    properties:
+      id:
+        type: integer
+      items:
+        items:
+          $ref: '#/definitions/order.OrderItem'
+        type: array
+      order_date:
+        type: string
+      total:
+        type: number
+    type: object
+  order.OrderItem:
+    properties:
+      book_id:
+        type: integer
+      price:
+        type: number
+      quantity:
+        type: integer
+    type: object
+  order.OrderRequestItem:
+    properties:
+      book_id:
+        type: integer
+      quantity:
+        type: integer
+    type: object
+  server.TokenResponse:
+    properties:
+      token:
+        type: string
+    type: object
+  server.customerRequest:
+    properties:
+      email:
+        type: string
+      password:
+        type: string
+    type: object
+  utils.ErrorMessage:
+    properties:
+      error_message:
+        type: string
+    type: object
+info:
+  contact: {}
+paths:
+  /api/books:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of all books
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/book.Model'
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.ErrorMessage'
+      summary: Get all books
+      tags:
+      - books
+  /api/login:
+    post:
+      consumes:
+      - application/json
+      description: Log in a customer with email and password
+      parameters:
+      - description: customer email/pass
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/server.customerRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/server.TokenResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.ErrorMessage'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.ErrorMessage'
+      summary: customer Login
+      tags:
+      - auth
+  /api/orders:
+    get:
+      consumes:
+      - application/json
+      description: Get a list of orders for the authenticated customer
+      parameters:
+      - default: Bearer <Add access token here>
+        description: Insert your access token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/order.Order'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.ErrorMessage'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.ErrorMessage'
+      summary: Get customer orders
+      tags:
+      - orders
+    post:
+      consumes:
+      - application/json
+      description: Create a new order with the provided items
+      parameters:
+      - default: Bearer <Add access token here>
+        description: Insert your access token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      - description: List of order items
+        in: body
+        name: orderItems
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/order.OrderRequestItem'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/order.Order'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.ErrorMessage'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.ErrorMessage'
+      summary: Create an order
+      tags:
+      - orders
+  /api/register:
+    post:
+      consumes:
+      - application/json
+      description: Register a new customer with email and password
+      parameters:
+      - description: customer email/pass
+        in: body
+        name: user
+        required: true
+        schema:
+          $ref: '#/definitions/server.customerRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/server.TokenResponse'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/utils.ErrorMessage'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/utils.ErrorMessage'
+      summary: customer Register
+      tags:
+      - auth
+swagger: "2.0"
