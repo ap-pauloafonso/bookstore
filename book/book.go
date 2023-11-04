@@ -32,18 +32,27 @@ func (s *Service) GetAllBooks(ctx context.Context) ([]*Model, error) {
 	return s.r.GetAllBooks(ctx)
 }
 
-// GetBookPrices returns a map of book prices if all of them exists, and errBookNotFound if one of the books is not found
-func (s *Service) GetBookPrices(ctx context.Context, bookIDs []int64) (map[int64]float64, error) {
+// GetBooksInformation returns a map of book price/name if all of them exists, and errBookNotFound if one of the books is not found
+func (s *Service) GetBooksInformation(ctx context.Context, bookIDs []int64) (map[int64]struct {
+	Price float64
+	Title string
+}, error) {
 
 	books, err := s.GetAllBooks(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	m := map[int64]float64{}
+	m := map[int64]struct {
+		Price float64
+		Title string
+	}{}
 
 	for _, v := range books {
-		m[v.ID] = v.Price
+		m[v.ID] = struct {
+			Price float64
+			Title string
+		}{Price: v.Price, Title: v.Title}
 	}
 
 	for _, v := range bookIDs {

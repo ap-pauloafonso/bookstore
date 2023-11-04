@@ -287,6 +287,9 @@ const docTemplate = `{
                 "book_id": {
                     "type": "integer"
                 },
+                "book_title": {
+                    "type": "string"
+                },
                 "price": {
                     "type": "number"
                 },

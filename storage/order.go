@@ -48,9 +48,10 @@ func (r *OrderRepository) SaveOrder(ctx context.Context, customerID int64, order
 
 func (r *OrderRepository) GetOrdersByCustomer(ctx context.Context, customerID int64) ([]order.Order, error) {
 	query := `
-        SELECT o.id, o.create_id, oi.book_id, oi.quantity, oi.price
+        SELECT o.id, o.create_id, oi.book_id, b.title, oi.quantity, oi.price
         FROM orders o
         JOIN orderitems oi ON o.id = oi.order_id
+		JOIN books b ON b.id = oi.book_id
         WHERE o.customer_id = $1
     `
 
@@ -67,7 +68,7 @@ func (r *OrderRepository) GetOrdersByCustomer(ctx context.Context, customerID in
 
 		var orderItem order.OrderItem
 		var o order.Order
-		if err := rows.Scan(&o.ID, &o.OrderDate, &orderItem.BookID, &orderItem.Quantity, &orderItem.Price); err != nil {
+		if err := rows.Scan(&o.ID, &o.OrderDate, &orderItem.BookID, &orderItem.BookTitle, &orderItem.Quantity, &orderItem.Price); err != nil {
 			return nil, err
 		}
 

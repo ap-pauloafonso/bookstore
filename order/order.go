@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"golang.org/x/exp/maps"
 	"time"
 )
 
@@ -24,9 +25,10 @@ func NewService(orderRepository Repository, bookService BookService) *Service {
 }
 
 type OrderItem struct {
-	BookID   int64   `json:"book_id"`
-	Quantity int     `json:"quantity"`
-	Price    float64 `json:"price"`
+	BookID    int64   `json:"book_id"`
+	Quantity  int     `json:"quantity"`
+	Price     float64 `json:"price"`
+	BookTitle string  `json:"book_title"`
 }
 
 type Order struct {
@@ -52,7 +54,10 @@ type Repository interface {
 }
 
 type BookService interface {
-	GetBookPrices(ctx context.Context, bookIDs []int64) (map[int64]float64, error)
+	GetBooksInformation(ctx context.Context, bookIDs []int64) (map[int64]struct {
+		Price float64
+		Title string
+	}, error)
 }
 
 func (s *Service) GetOrdersByCustomer(ctx context.Context, customerID int64) ([]Order, error) {
@@ -61,8 +66,26 @@ func (s *Service) GetOrdersByCustomer(ctx context.Context, customerID int64) ([]
 		return nil, err
 	}
 
+	// calculate total
+	distinctBooks := map[int64]struct{}{}
 	for i := range orders {
 		orders[i].Total = CalculateTotal(orders[i].Items)
+		for _, v := range orders[i].Items {
+			if _, ok := distinctBooks[v.BookID]; !ok {
+				distinctBooks[v.BookID] = struct{}{}
+			}
+		}
+	}
+
+	// fill books name for good user experience
+	booksMap, err := s.bookService.GetBooksInformation(ctx, maps.Keys(distinctBooks))
+	if err != nil {
+		return nil, err
+	}
+	for i := range orders {
+		for bookIdx := range orders[i].Items {
+			orders[i].Items[bookIdx].BookTitle = booksMap[orders[i].Items[bookIdx].BookID].Title
+		}
 	}
 
 	return orders, nil
@@ -102,7 +125,7 @@ func (s *Service) MakeOrder(ctx context.Context, customerID int64, items []Order
 	}
 
 	// Check if all books exist, get their prices
-	m, err := s.bookService.GetBookPrices(ctx, bookIDs)
+	m, err := s.bookService.GetBooksInformation(ctx, bookIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -111,9 +134,10 @@ func (s *Service) MakeOrder(ctx context.Context, customerID int64, items []Order
 	orderItems := make([]OrderItem, len(items))
 	for i := range items {
 		orderItems[i] = OrderItem{
-			BookID:   items[i].BookID,
-			Quantity: items[i].Quantity,
-			Price:    m[items[i].BookID],
+			BookID:    items[i].BookID,
+			Quantity:  items[i].Quantity,
+			Price:     m[items[i].BookID].Price,
+			BookTitle: m[items[i].BookID].Title,
 		}
 	}
 

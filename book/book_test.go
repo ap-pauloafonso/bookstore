@@ -168,7 +168,7 @@ func TestService_GetBookPrices(t *testing.T) {
 				Err:   tc.repoError,
 			})
 
-			prices, err := service.GetBookPrices(context.Background(), tc.bookIDs)
+			prices, err := service.GetBooksInformation(context.Background(), tc.bookIDs)
 
 			// Check the error.
 			if err != tc.expectedError {
@@ -178,8 +178,8 @@ func TestService_GetBookPrices(t *testing.T) {
 			// Check the prices if there's no error.
 			if err == nil {
 				for id, expectedPrice := range tc.expected {
-					if prices[id] != expectedPrice {
-						t.Errorf("Expected price for book %d: %f, but got: %f", id, expectedPrice, prices[id])
+					if prices[id].Price != expectedPrice {
+						t.Errorf("Expected price for book %d: %f, but got: %f", id, expectedPrice, prices[id].Price)
 					}
 				}
 			}

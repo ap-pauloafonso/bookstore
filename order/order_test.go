@@ -21,10 +21,16 @@ func (m *MockRepository) GetOrdersByCustomer(ctx context.Context, customerID int
 }
 
 type MockBookService struct {
-	GetBookPricesFunc func(ctx context.Context, bookIDs []int64) (map[int64]float64, error)
+	GetBookPricesFunc func(ctx context.Context, bookIDs []int64) (map[int64]struct {
+		Price float64
+		Title string
+	}, error)
 }
 
-func (m *MockBookService) GetBookPrices(ctx context.Context, bookIDs []int64) (map[int64]float64, error) {
+func (m *MockBookService) GetBooksInformation(ctx context.Context, bookIDs []int64) (map[int64]struct {
+	Price float64
+	Title string
+}, error) {
 	return m.GetBookPricesFunc(ctx, bookIDs)
 }
 
@@ -85,7 +91,10 @@ func TestService_MakeOrder(t *testing.T) {
 		SaveOrderFunc           func(ctx context.Context, customerID int64, orderDate time.Time, items []OrderItem) (*int64, error)
 		GetOrdersByCustomerFunc func(ctx context.Context, customerID int64) ([]Order, error)
 
-		GetBookPricesFunc func(ctx context.Context, bookIDs []int64) (map[int64]float64, error)
+		getBooksInformation func(ctx context.Context, bookIDs []int64) (map[int64]struct {
+			Price float64
+			Title string
+		}, error)
 	}{
 		{
 			name: "ValidOrder",
@@ -96,8 +105,14 @@ func TestService_MakeOrder(t *testing.T) {
 			SaveOrderFunc: func(ctx context.Context, customerID int64, orderDate time.Time, items []OrderItem) (*int64, error) {
 				return new(int64), nil
 			},
-			GetBookPricesFunc: func(ctx context.Context, bookIDs []int64) (map[int64]float64, error) {
-				return map[int64]float64{1: 10.0, 2: 20.0}, nil
+			getBooksInformation: func(ctx context.Context, bookIDs []int64) (map[int64]struct {
+				Price float64
+				Title string
+			}, error) {
+				return map[int64]struct {
+					Price float64
+					Title string
+				}{1: {10.0, "Book1"}, 2: {20.0, "Book2"}}, nil
 			},
 			expectedOrder: &Order{
 				ID:        0,
@@ -119,8 +134,14 @@ func TestService_MakeOrder(t *testing.T) {
 			SaveOrderFunc: func(ctx context.Context, customerID int64, orderDate time.Time, items []OrderItem) (*int64, error) {
 				return new(int64), saveOrdeErr
 			},
-			GetBookPricesFunc: func(ctx context.Context, bookIDs []int64) (map[int64]float64, error) {
-				return map[int64]float64{1: 10.0, 2: 20.0}, nil
+			getBooksInformation: func(ctx context.Context, bookIDs []int64) (map[int64]struct {
+				Price float64
+				Title string
+			}, error) {
+				return map[int64]struct {
+					Price float64
+					Title string
+				}{1: {10.0, "Book1"}, 2: {20.0, "book2"}}, nil
 			},
 			expectedOrder: &Order{
 				ID:        0,
@@ -173,7 +194,10 @@ func TestService_MakeOrder(t *testing.T) {
 				{BookID: 1, Quantity: 2},
 				{BookID: 2, Quantity: 1},
 			},
-			GetBookPricesFunc: func(ctx context.Context, bookIDs []int64) (map[int64]float64, error) {
+			getBooksInformation: func(ctx context.Context, bookIDs []int64) (map[int64]struct {
+				Price float64
+				Title string
+			}, error) {
 				return nil, bookServiceErr
 			},
 			expectedOrder: nil,
@@ -190,7 +214,7 @@ func TestService_MakeOrder(t *testing.T) {
 				GetOrdersByCustomerFunc: tt.GetOrdersByCustomerFunc,
 			}
 			mockBookService := &MockBookService{
-				GetBookPricesFunc: tt.GetBookPricesFunc,
+				GetBookPricesFunc: tt.getBooksInformation,
 			}
 
 			// Create the service with the mock repository and book service.
@@ -224,7 +248,7 @@ func TestService_MakeOrder(t *testing.T) {
 
 func TestService_GetOrdersByCustomer(t *testing.T) {
 	repoErr := errors.New("repo err")
-
+	booksInfoErr := errors.New("error retrieving books info")
 	// Prepare some sample data for testing
 	orders := []Order{
 		{
@@ -246,11 +270,15 @@ func TestService_GetOrdersByCustomer(t *testing.T) {
 	}
 
 	tests := []struct {
-		name               string
-		customerID         int64
-		mockRepositoryFunc func(ctx context.Context, customerID int64) ([]Order, error)
-		expectedOrders     []Order
-		expectedError      error
+		name                string
+		customerID          int64
+		mockRepositoryFunc  func(ctx context.Context, customerID int64) ([]Order, error)
+		expectedOrders      []Order
+		expectedError       error
+		getBooksInformation func(ctx context.Context, bookIDs []int64) (map[int64]struct {
+			Price float64
+			Title string
+		}, error)
 	}{
 		{
 			name:       "ValidCustomer",
@@ -260,6 +288,15 @@ func TestService_GetOrdersByCustomer(t *testing.T) {
 			},
 			expectedOrders: orders, // Orders should be the same as provided.
 			expectedError:  nil,
+			getBooksInformation: func(ctx context.Context, bookIDs []int64) (map[int64]struct {
+				Price float64
+				Title string
+			}, error) {
+				return map[int64]struct {
+					Price float64
+					Title string
+				}{1: {10.0, "book1"}, 2: {20.0, "book2"}}, nil
+			},
 		},
 		{
 			name:       "InvalidCustomer",
@@ -270,6 +307,20 @@ func TestService_GetOrdersByCustomer(t *testing.T) {
 			expectedOrders: nil,
 			expectedError:  repoErr,
 		},
+		{
+			name:       "failed to fill books name",
+			customerID: 1,
+			mockRepositoryFunc: func(ctx context.Context, customerID int64) ([]Order, error) {
+				return orders, nil
+			},
+			expectedError: booksInfoErr,
+			getBooksInformation: func(ctx context.Context, bookIDs []int64) (map[int64]struct {
+				Price float64
+				Title string
+			}, error) {
+				return nil, booksInfoErr
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -279,8 +330,12 @@ func TestService_GetOrdersByCustomer(t *testing.T) {
 				GetOrdersByCustomerFunc: tt.mockRepositoryFunc,
 			}
 
+			mockBookService := &MockBookService{
+				GetBookPricesFunc: tt.getBooksInformation,
+			}
+
 			// Create the service with the mock repository.
-			service := NewService(mockRepo, nil)
+			service := NewService(mockRepo, mockBookService)
 
 			orders, err := service.GetOrdersByCustomer(context.Background(), tt.customerID)
 
